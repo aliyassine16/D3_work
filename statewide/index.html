@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+path {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.d3_districts {
+  fill: #ececec;
+}
+
+.d3_districtsh{
+  fill: #cccccc;
+}
+
+.d3_districts :hover {
+  fill: #cccccc;
+}
+
+.district-boundaries {
+  pointer-events: none;
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1px;
+}
+
+.state-boundaries {
+  pointer-events: none;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+#svg{
+  border: 1px red solid;
+}
+</style>
+<body>
+<button onclick="select_district('02');">district 02</button>
+<div id="svg" style="width:333px;"></div>
+<script src="d3/d3.v3.min.js"></script>
+<script src="d3/queue.v1.min.js"></script>
+<script src="d3/underscore-min.js"></script>
+<script>
+
+var width = 333,
+    height = 268;
+
+
+var svg = d3.select("#svg").append("svg")
+    .attr("width", width+"px")
+    .attr("height", height+"px");
+
+var currentClass;
+var currentDistrict;    
+
+queue()   
+    .defer(d3.json, "./json/IA.json")
+    .await(ready);
+
+function ready(error, congress) {
+  
+  if (error) throw error;
+
+
+    var geoProjection = d3.geo.albersUsa();
+    var projection=scale_projection(congress.features,geoProjection,width,height);
+
+    var path = d3.geo.path()
+        .projection(projection);
+
+  svg.append("g")
+      .attr("class", "d3_districts")      
+    .selectAll("path")      
+      .data(congress.features)                
+    .enter().append("path")
+      .attr("d", d3.geo.path().projection(projection))      
+      .on("click", function(d){
+
+      /**************** start the click event*****************************/  
+      //console.log(d);  
+      if(currentDistrict!=null && currentDistrict!=undefined){
+        d3.select(currentDistrict)
+          .attr("class", "d3_districts");
+      }
+
+        console.log(this);
+        d3.select(this)
+          .attr("class", "d3_districtsh");
+        
+        currentDistrict=this;
+       /******************** end of the click event*********************/   
+      })  
+      .attr("id",function(d) { return  "dist"+d.properties.district; })
+      .attr("title",function(d) { return  d.properties.district; })
+      .attr("class",function(d) { if(parseInt(d.properties.district)===1) { currentDistrict=this; return "d3_districtsh";} });
+    
+
+  svg.append("path")
+      .attr("class", "district-boundaries")
+      .datum(congress, congress.features.properties, function(a, b) { return a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0); })
+      .attr("d", path);
+      
+
+      
+}
+
+
+d3.select(self.frameElement).style("height", height + "px");
+
+
+function select_district(id){
+
+  if(currentDistrict!=null && currentDistrict!=undefined){
+        d3.select(currentDistrict)
+          .attr("class", "d3_districts");
+      }
+      
+  var object =d3.select('path#dist'+id);
+  console.log(object);
+  currentDistrict=object;
+  object.attr("class",function(d) {  currentDistrict=this; return "d3_districtsh";} );
+
+}
+
+/* Rescale a D3 map projection to fit a set of features.
+*/
+function scale_projection(features, projection, width, height) {
+
+   projection.scale(1).translate([0,0]);
+   var path = d3.geo.path().projection(projection);
+
+   var bounds = _.map(features, path.bounds);
+
+   var leftBoundaries = _.map(bounds, function(arrs) { return arrs[0][0] ; }) ;
+   var rightBoundaries = _.map(bounds, function(arrs) { return arrs[1][0] ; }) ;
+   var topBoundaries = _.map(bounds, function(arrs) { return arrs[0][1] ; }) ;
+   var bottomBoundaries = _.map(bounds, function(arrs) { return arrs[1][1] ;}) ;
+
+   var left = _.min(leftBoundaries) ;
+   var right = _.max(rightBoundaries) ;
+   var top_ = _.min(topBoundaries) ;
+   var bottom = _.max(bottomBoundaries) ;
+
+   var boundsWidth = right - left ;
+   var boundsHeight = bottom - top_ ;
+
+   var s = 0.95 / Math.max(boundsWidth / width, boundsHeight  / height),
+       t = [(width - s * (right + left)) / 2, (height - s * (top_ + bottom)) / 2];
+
+   projection
+       .scale(s)
+       .translate(t);
+
+   return projection;
+}
+</script>

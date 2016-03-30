@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+path {
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.districts {
+  fill: #bbb;
+}
+
+.districts :hover {
+  fill: orange;
+}
+
+.district-boundaries {
+  pointer-events: none;
+  fill: none;
+  stroke: #ff0000;
+  stroke-width: .5px;
+}
+
+.state-boundaries {
+  pointer-events: none;
+  fill: none;
+  stroke: #fff;
+  stroke-width: .5px;
+}
+
+</style>
+<body>
+
+<script src="d3/d3.v3.min.js"></script>
+<div id="svg" style="width:333px;"></div>
+<script src="d3/queue.v1.min.js"></script>
+<script src="d3/underscore-min.js"></script>
+<script>
+
+var width = 960,
+    height = 600;
+
+var projection = d3.geo.albersUsa()
+    .scale(1280)
+    .translate([width / 2, height / 2]);
+
+var path = d3.geo.path()
+    .projection(projection);
+
+var svg = d3.select("#svg").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+queue()    
+    .defer(d3.json, "geo_us.json")
+    .await(ready);
+
+function ready(error,  congress) {
+  
+  console.dir(congress);
+  if (error) throw error;
+
+  svg.append("defs").append("path")
+      .attr("id", "land")
+      .datum(congress, congress.features)
+      .attr("d", path);
+
+  svg.append("g")
+      .attr("class", "districts")
+      .attr("clip-path", "url(#clip-land)")
+    .selectAll("path")      
+      .data(congress.features)                
+    .enter().append("path")
+      .attr("d", path)      
+      .on("click", function(d){
+        window.location.href='#/groups';
+        console.log(d);
+      })  
+    .append("title")      
+      .text(function(d) { return d.properties.NAME; });
+    
+
+  svg.append("path")
+      .attr("class", "state-boundaries")
+      .datum(congress, congress.features.properties, function(a, b) { return a !== b && (a.id / 1000 | 0) === (b.id / 1000 | 0); })
+      .attr("d", path);
+      
+
+      
+}
+
+d3.select(self.frameElement).style("height", height + "px");
+
+</script>
